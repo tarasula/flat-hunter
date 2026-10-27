@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Flat Hunter — Belgrade",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Сохраняйте, тегируйте и отслеживайте квартиры с HaloOglasi, CityExpert и других сайтов аренды.",
-  "permissions": ["storage", "activeTab", "scripting", "alarms"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "background": {
     "service_worker": "background.js"
   },

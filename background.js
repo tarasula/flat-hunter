@@ -4,10 +4,8 @@
  * Задачи:
  *  1. Инициализировать хранилище при установке.
  *  2. Показывать на иконке бейдж с числом "активных" квартир (все, кроме статуса "Отказ").
- *  3. Dev-автообновление: если расширение загружено как распакованное (из папки
- *     с git-репозиторием), каждые 30 секунд проверять, не изменились ли файлы
- *     на диске (например, после `git pull`), и перезагружать расширение.
- *     Данные в chrome.storage.local при перезагрузке сохраняются.
+ *  3. Обновление по требованию: после `git pull` замечать новые файлы
+ *     при открытии popup/базы и перезагружать расширение (данные сохраняются).
  */
 
 const STORAGE_KEY = 'apartments';
@@ -40,10 +38,15 @@ async function updateBadge() {
   await chrome.action.setBadgeText({ text: activeCount ? String(activeCount) : '' });
 }
 
-// ---------- Dev-автообновление ----------
+// ---------- Обновление из git-папки ----------
+//
+// Никаких таймеров: расширение проверяет свои файлы на диске только тогда,
+// когда вы открываете popup или "Мою базу". Если после `git pull`
+// (скрипт update-mac.command / update-windows.bat) файлы изменились —
+// база перезагружает расширение сама, а popup показывает кнопку "Обновить".
 
-const RELOAD_ALARM = 'dev-autoreload';
-const HASH_KEY = 'devFilesHash';
+const HASH_KEY = 'filesHash';
+const REOPEN_KEY = 'reopenDashboardAfterUpdate';
 
 /** Файлы, изменения которых отслеживаем. При добавлении нового файла — допишите его сюда. */
 const WATCHED_FILES = [
@@ -51,47 +54,63 @@ const WATCHED_FILES = [
   'popup.html', 'popup.js', 'dashboard.html', 'dashboard.js', 'styles.css',
 ];
 
-/** У расширений из Chrome Web Store в манифесте есть update_url, у распакованных — нет. */
-const IS_UNPACKED = !('update_url' in chrome.runtime.getManifest());
-
-if (IS_UNPACKED) {
-  // Создаём будильник один раз (повторный create сбрасывал бы таймер при каждом пробуждении воркера)
-  chrome.alarms.get(RELOAD_ALARM).then((alarm) => {
-    if (!alarm) chrome.alarms.create(RELOAD_ALARM, { periodInMinutes: 0.5 });
-  });
-  checkForFileChanges();
+/** SHA-256 от содержимого всех файлов расширения, прочитанных с диска. */
+async function computeFilesHash() {
+  const contents = await Promise.all(
+    WATCHED_FILES.map((file) =>
+      fetch(chrome.runtime.getURL(file), { cache: 'no-store' })
+        .then((r) => (r.ok ? r.text() : ''))
+        .catch(() => '')
+    )
+  );
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contents.join('\u0000')));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === RELOAD_ALARM) checkForFileChanges();
+/**
+ * true, если файлы на диске отличаются от тех, что сейчас загружены.
+ * "Отпечаток" загруженной версии запоминается в storage.session
+ * (живёт до перезапуска браузера или перезагрузки расширения).
+ */
+async function hasPendingUpdate() {
+  const hash = await computeFilesHash();
+  const { [HASH_KEY]: loaded } = await chrome.storage.session.get(HASH_KEY);
+  if (!loaded) {
+    await chrome.storage.session.set({ [HASH_KEY]: hash });
+    return false;
+  }
+  return loaded !== hash;
+}
+
+/** Применяет обновление; при reopenDashboard база откроется заново после перезагрузки. */
+async function applyUpdate(reopenDashboard) {
+  if (reopenDashboard) await chrome.storage.local.set({ [REOPEN_KEY]: true });
+  chrome.runtime.reload();
+}
+
+// Запоминаем отпечаток версии при старте браузера/расширения
+hasPendingUpdate().catch(() => {});
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === 'CHECK_UPDATE') {
+    hasPendingUpdate().then((updated) => sendResponse({ updated })).catch(() => sendResponse({ updated: false }));
+    return true; // ответ асинхронный
+  }
+  if (msg?.type === 'APPLY_UPDATE') {
+    applyUpdate(Boolean(msg.reopenDashboard));
+  }
 });
 
 /**
- * Читает файлы расширения с диска, считает общий SHA-256 и сравнивает
- * с сохранённым. Если отличается — перезагружает расширение.
- * chrome.storage.session очищается при перезагрузке, поэтому после reload
- * первый проход просто запоминает новый "отпечаток".
+ * После перезагрузки из базы — открываем базу снова.
+ * Вызывается при каждом старте воркера (а не только в onInstalled),
+ * поэтому срабатывает при любом способе перезагрузки.
  */
-async function checkForFileChanges() {
-  try {
-    const contents = await Promise.all(
-      WATCHED_FILES.map((file) =>
-        fetch(chrome.runtime.getURL(file), { cache: 'no-store' })
-          .then((r) => (r.ok ? r.text() : ''))
-          .catch(() => '')
-      )
-    );
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(contents.join('\u0000')));
-    const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-
-    const { [HASH_KEY]: previous } = await chrome.storage.session.get(HASH_KEY);
-    if (!previous) {
-      await chrome.storage.session.set({ [HASH_KEY]: hash });
-    } else if (previous !== hash) {
-      console.log('[Flat Hunter] Файлы изменились — перезагружаю расширение');
-      chrome.runtime.reload();
-    }
-  } catch (err) {
-    console.warn('[Flat Hunter] Проверка обновлений не удалась:', err);
+async function reopenDashboardIfRequested() {
+  const { [REOPEN_KEY]: reopen } = await chrome.storage.local.get(REOPEN_KEY);
+  if (reopen) {
+    await chrome.storage.local.remove(REOPEN_KEY);
+    chrome.runtime.openOptionsPage();
   }
 }
+reopenDashboardIfRequested().catch(() => {});

@@ -29,7 +29,23 @@ init();
 
 // ---------- Инициализация ----------
 
+/**
+ * При открытии базы проверяем, не обновились ли файлы после `git pull`.
+ * Если да — перезагружаем расширение, и база откроется заново уже в новой версии.
+ */
+async function applyUpdateIfAvailable() {
+  try {
+    const { updated } = await chrome.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+    if (updated) {
+      document.title = 'Обновляю…';
+      chrome.runtime.sendMessage({ type: 'APPLY_UPDATE', reopenDashboard: true });
+    }
+  } catch { /* не критично */ }
+}
+
 async function init() {
+  applyUpdateIfAvailable();
+
   // Опции фильтра районов: "m:<община>" — вся община с подрайонами, "d:<район>" — конкретный район
   const districtSelect = $('#filter-district');
   for (const group of FH.DISTRICT_GROUPS) {
@@ -145,7 +161,7 @@ function renderStats() {
   const avg = priced.length ? Math.round(priced.reduce((s, p) => s + p, 0) / priced.length) : null;
   const ready = list.filter((a) => a.status === 'Готов снимать').length;
 
-  const parts = [`Всего: ${list.length}`];
+  const parts = [`v${chrome.runtime.getManifest().version}`, `Всего: ${list.length}`];
   if (avg) parts.push(`средняя цена ${formatPrice(avg)}`);
   if (ready) parts.push(`готов снимать: ${ready}`);
   $('#stats').textContent = parts.join(' · ');

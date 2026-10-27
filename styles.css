@@ -138,6 +138,15 @@ body.popup { width: 360px; padding: 14px; }
   font-size: 12px;
 }
 
+.banner-update {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #dbeddb;
+  color: #1c3829;
+}
+
 #apt-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .checks { display: flex; flex-direction: column; gap: 6px; padding: 2px 0; }

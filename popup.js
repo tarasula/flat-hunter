@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', init);
 /** Точка входа: навешиваем обработчики и подгружаем данные текущей вкладки. */
 async function init() {
   populateSelects();
+  checkForUpdate();
 
   document.getElementById('open-dashboard').addEventListener('click', async () => {
     await chrome.runtime.openOptionsPage(); // откроет dashboard или переключит на уже открытую вкладку
@@ -53,6 +54,21 @@ async function init() {
     banner.hidden = false;
     saveBtn.textContent = 'Обновить квартиру';
   }
+}
+
+/**
+ * Если после `git pull` файлы расширения на диске изменились,
+ * показывает плашку с кнопкой "Обновить" (перезагрузка расширения, данные сохраняются).
+ */
+async function checkForUpdate() {
+  try {
+    const { updated } = await chrome.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+    if (!updated) return;
+    document.getElementById('update-banner').hidden = false;
+    document.getElementById('apply-update').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'APPLY_UPDATE' }); // popup закроется при перезагрузке
+    });
+  } catch { /* не критично */ }
 }
 
 /** Строит списки районов, статусов и отопления из справочника data.js. */
