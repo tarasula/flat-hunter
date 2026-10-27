@@ -21,7 +21,7 @@
   </div>
 
   <button id="parse-btn" class="btn btn-secondary btn-block" type="button">
-    ✨ Спарсить данные с текущей страницы
+    ✨ Заполнить со страницы
   </button>
 
   <form id="apt-form" autocomplete="off" novalidate>
@@ -43,6 +43,20 @@
       <label class="field">
         <span class="field-label">Район / Папка</span>
         <select name="district"><!-- заполняется из data.js --></select>
+      </label>
+    </div>
+
+    <div class="row">
+      <label class="field">
+        <span class="field-label">Площадь, м²</span>
+        <input name="area" type="number" min="0" step="any" inputmode="decimal" placeholder="65">
+      </label>
+      <label class="field">
+        <span class="field-label">Комнаты</span>
+        <select name="rooms">
+          <option value="">Не указано</option>
+          <!-- остальные опции — из data.js -->
+        </select>
       </label>
     </div>
 

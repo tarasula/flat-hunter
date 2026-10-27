@@ -270,6 +270,7 @@ body.popup { width: 360px; padding: 14px; }
 a.card-title:hover { text-decoration: underline; text-decoration-color: var(--faint); }
 
 .card-price { font-size: 15px; font-weight: 600; }
+.card-specs { font-size: 13px; color: var(--muted); margin-top: -4px; }
 .card-price.empty { font-size: 13px; font-weight: 400; color: var(--faint); }
 
 .tags { display: flex; flex-wrap: wrap; gap: 4px; }

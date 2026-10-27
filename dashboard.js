@@ -225,7 +225,12 @@ function createCard(apt) {
     createDeleteButton(apt)
   );
 
-  card.append(createTitle(apt), priceEl, tags, createFeatureIcons(apt));
+  const specs = specsText(apt);
+  const specsEl = specs && el('div', { className: 'card-specs', textContent: specs });
+
+  card.append(createTitle(apt), priceEl);
+  if (specsEl) card.append(specsEl);
+  card.append(tags, createFeatureIcons(apt));
   if (comment) card.append(comment);
   card.append(footer);
   return card;
@@ -238,7 +243,7 @@ function renderTable(items) {
 
   if (!items.length) {
     const td = el('td', { className: 'table-empty', textContent: 'Ничего не найдено по фильтрам' });
-    td.colSpan = 10;
+    td.colSpan = 12;
     tbody.append(el('tr', {}, td));
     return;
   }
@@ -247,6 +252,8 @@ function renderTable(items) {
     const tr = el('tr', {},
       el('td', {}, createTitle(apt)),
       el('td', { className: 'nowrap', textContent: apt.price ? formatPrice(apt.price) : '—' }),
+      el('td', { className: 'nowrap', textContent: apt.area ? `${formatNumber(apt.area)} м²` : '—' }),
+      el('td', { className: 'nowrap', textContent: apt.rooms ? FH.formatRooms(apt.rooms) : '—' }),
       el('td', { className: 'nowrap', textContent: apt.district ? districtLabel(apt.district) : '—' }),
       el('td', {}, createStatusSelect(apt)),
       el('td', { className: 'nowrap', textContent: apt.heating ? FH.heatingShort(apt.heating) : '—' }),
@@ -332,11 +339,11 @@ function exportCsv() {
     return;
   }
 
-  const headers = ['Заголовок', 'URL', 'Цена (€)', 'Район', 'Статус', 'Отопление',
+  const headers = ['Заголовок', 'URL', 'Цена (€)', 'Площадь (м²)', 'Комнаты', 'Район', 'Статус', 'Отопление',
     'Белый картон', 'Pet-friendly', 'Комментарий', 'Добавлено', 'Обновлено'];
 
   const rows = state.apartments.map((a) => [
-    a.title, a.url, a.price ?? '', a.district, a.status, a.heating,
+    a.title, a.url, a.price ?? '', a.area ?? '', a.rooms ?? '', a.district, a.status, a.heating,
     a.whiteCarton ? 'Да' : 'Нет', a.petFriendly ? 'Да' : 'Нет',
     a.comment, formatDate(a.createdAt), formatDate(a.updatedAt),
   ]);
@@ -378,6 +385,19 @@ function safeUrl(raw) {
   } catch {
     return '';
   }
+}
+
+/** "105 м² · 4 комн. · 11 €/м²" — строка характеристик для карточки. */
+function specsText(apt) {
+  const parts = [];
+  if (apt.area) parts.push(`${formatNumber(apt.area)} м²`);
+  if (apt.rooms) parts.push(FH.formatRooms(apt.rooms));
+  if (apt.area && apt.price) parts.push(`${formatNumber(Math.round((apt.price / apt.area) * 10) / 10)} €/м²`);
+  return parts.join(' · ');
+}
+
+function formatNumber(n) {
+  return Number(n).toLocaleString('ru-RU');
 }
 
 function formatPrice(n) {

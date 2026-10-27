@@ -8,7 +8,7 @@
  *
  * Перед ним инжектится data.js (справочник районов и отопления → globalThis.FlatHunter).
  * Значение последнего выражения файла (результат IIFE) возвращается в popup.
- * Формат: { title, price: number|null, url, district, heating }
+ * Формат: { title, price, url, district, heating, area: м² | null, rooms: число комнат | null }
  */
 (() => {
   const FH = globalThis.FlatHunter;
@@ -26,6 +26,8 @@
       scriptPrice: /"cena_d"\s*:\s*"?([\d.]+)/,
       scriptDistrict: [/"mikrolokacija_s"\s*:\s*"([^"]+)"/, /"lokacija_s"\s*:\s*"([^"]+)"/],
       scriptHeating: /"grejanje_s"\s*:\s*"([^"]+)"/,
+      scriptArea: /"kvadratura_d"\s*:\s*"?([\d.]+)/,
+      scriptRooms: /"broj_soba_s"\s*:\s*"([^"]+)"/,
     },
     {
       host: /(^|\.)cityexpert\.rs$/,
@@ -161,6 +163,23 @@
     return FH.detectDistrict([locationText, title, metaOf('og:description', 'description')]);
   }
 
+  /** Текст страницы (с запасом, но не весь — ниже обычно похожие объявления). */
+  const pageText = () => document.body?.innerText?.slice(0, 30000) || '';
+
+  /** Площадь, м²: поле сайта → заголовок → текст страницы ("Kvadratura 105 m2"). */
+  function guessArea(rule, title) {
+    const fromScript = parseFloat(scriptValue(rule.scriptArea));
+    if (fromScript > 0) return Math.round(fromScript * 10) / 10;
+    return FH.detectArea(title) || FH.detectArea(pageText());
+  }
+
+  /** Комнаты: поле сайта ("4.0") → заголовок ("dvosoban", "2.5 stan") → текст страницы. */
+  function guessRooms(rule, title) {
+    const fromScript = scriptValue(rule.scriptRooms);
+    if (fromScript) return FH.roundRooms(fromScript.replace('+', ''));
+    return FH.detectRooms(title) || FH.detectRooms(pageText());
+  }
+
   /** Отопление: ищем в тексте страницы ("Grejanje: CG", "Centralno grejanje", "TA peć"…). */
   function guessHeating(rule, title) {
     // Поле сайта ("grejanje_s": "Gas") надёжнее, чем текст всей страницы
@@ -200,9 +219,11 @@
       url: location.href,
       district: FH ? guessDistrict(rule, title) : '',
       heating: FH ? guessHeating(rule, title) : '',
+      area: FH ? guessArea(rule, title) : null,
+      rooms: FH ? guessRooms(rule, title) : null,
     };
   } catch (err) {
     // Если что-то пошло не так — отдаём хотя бы URL, остальное пользователь введёт сам.
-    return { title: '', price: null, url: location.href, district: '', heating: '', error: String(err) };
+    return { title: '', price: null, url: location.href, district: '', heating: '', area: null, rooms: null, error: String(err) };
   }
 })();

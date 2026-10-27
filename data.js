@@ -340,6 +340,56 @@
     return '';
   }
 
+  // ---------- Комнаты и площадь ----------
+
+  /** Варианты комнатности как в Сербии: 0.5 = гарсоньера, 2.5 = "двоипособан", 5 = 5 и больше. */
+  const ROOM_OPTIONS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+
+  /** "Garsonjera", "dvoiposoban", "trosoban" → число комнат. */
+  const ROOM_WORDS = [
+    [/garsonjer/, 0.5], [/jednoiposob/, 1.5], [/jednosob/, 1],
+    [/dvoiposob/, 2.5], [/dvosob/, 2], [/troiposob/, 3.5], [/trosob/, 3],
+    [/cetvoroiposob/, 4.5], [/cetvorosob/, 4], [/petosob|visesob/, 5],
+  ];
+
+  /** Приводит число к ближайшему варианту из ROOM_OPTIONS (5+ → 5). */
+  function roundRooms(n) {
+    const num = Number(String(n).replace(',', '.'));
+    if (!Number.isFinite(num) || num <= 0) return null;
+    return Math.min(5, Math.max(0.5, Math.round(num * 2) / 2));
+  }
+
+  /**
+   * Комнаты из текста: "Broj soba: 2.5", "Struktura 3.0", "Moderan 4.0 stan",
+   * "dvosoban stan", "garsonjera".
+   */
+  function detectRooms(text) {
+    const raw = String(text || '');
+    const labeled = raw.match(/(?:broj soba|struktura|sobnost|број соба|структура)\s*:?\s*(\d(?:[.,]\d)?\+?)/i);
+    if (labeled) return roundRooms(labeled[1]);
+    const inTitle = raw.match(/(?:^|[\s,])(\d)[.,]([05])\+?\s*(?:stan|sob|str|soban|-?soban)/i);
+    if (inTitle) return roundRooms(`${inTitle[1]}.${inTitle[2]}`);
+    const norm = normalize(raw);
+    return ROOM_WORDS.find(([re]) => re.test(norm))?.[1] ?? null;
+  }
+
+  /** Площадь из текста: "Kvadratura 105 m2", "Površina: 64,5 m²", "65m2". */
+  function detectArea(text) {
+    const raw = String(text || '');
+    const labeled = raw.match(/(?:kvadratura|povr[šs]ina|квадратура|површина)\s*:?\s*(\d{1,4}(?:[.,]\d{1,2})?)/i);
+    const plain = raw.match(/(\d{1,4}(?:[.,]\d{1,2})?)\s?(?:m2|m²|kvm|м2|м²)(?![a-z])/i);
+    const value = parseFloat((labeled || plain)?.[1]?.replace(',', '.'));
+    return value >= 10 && value <= 1000 ? Math.round(value * 10) / 10 : null;
+  }
+
+  /** 0.5 → "гарсоньера", 2.5 → "2.5 комн.", 5 → "5+ комн." */
+  function formatRooms(n) {
+    if (n == null || n === '') return '';
+    const num = Number(n);
+    if (num === 0.5) return 'гарсоньера';
+    return `${num >= 5 ? '5+' : String(num).replace('.', ',')} комн.`;
+  }
+
   // ---------- Хелперы для UI ----------
 
   /** Название группы (общины) для района; '' для "Другое" и неизвестных значений. */
@@ -376,6 +426,11 @@
     normalize,
     detectDistrict,
     detectHeating,
+    ROOM_OPTIONS,
+    detectRooms,
+    detectArea,
+    roundRooms,
+    formatRooms,
     groupOf,
     heatingShort,
     fillDistrictSelect,

@@ -83,6 +83,9 @@ function populateSelects() {
   FH.STATUSES.forEach((s) => status.append(new Option(s.name, s.name)));
   status.value = FH.STATUSES[0].name;
 
+  const rooms = field('rooms');
+  FH.ROOM_OPTIONS.forEach((n) => rooms.append(new Option(FH.formatRooms(n), String(n))));
+
   const heating = field('heating');
   FH.HEATING_TYPES.forEach((h) => heating.append(new Option(h.value, h.value)));
 }
@@ -114,7 +117,7 @@ async function parseCurrentPage() {
  * Переносит найденные данные в форму.
  * Не найденные поля не трогаем (остаются пустыми для ручного ввода) и подсвечиваем.
  */
-function applyParsed({ title, price, url, district, heating }) {
+function applyParsed({ title, price, url, district, heating, area, rooms }) {
   const missing = [];
 
   if (url) field('url').value = url;
@@ -124,6 +127,12 @@ function applyParsed({ title, price, url, district, heating }) {
 
   if (price) field('price').value = price;
   else { markMissing('price'); missing.push('цену'); }
+
+  if (area) field('area').value = area;
+  else { markMissing('area'); missing.push('площадь'); }
+
+  if (rooms) field('rooms').value = String(rooms);
+  else missing.push('комнаты');
 
   if (district) field('district').value = district;
   else missing.push('район');
@@ -182,10 +191,15 @@ function readForm() {
   const priceRaw = field('price').value.trim();
   const price = priceRaw === '' ? null : Math.round(Number(priceRaw));
 
+  const areaRaw = Number(field('area').value.replace(',', '.'));
+  const roomsRaw = field('rooms').value;
+
   return {
     title: field('title').value.trim(),
     url: field('url').value.trim(),
     price: Number.isFinite(price) && price >= 0 ? price : null,
+    area: areaRaw > 0 ? Math.round(areaRaw * 10) / 10 : null,
+    rooms: roomsRaw ? Number(roomsRaw) : null,
     district: field('district').value,
     status: field('status').value,
     heating: field('heating').value,
@@ -204,6 +218,8 @@ function fillForm(apt) {
   field('title').value = apt.title ?? '';
   field('url').value = apt.url ?? '';
   field('price').value = apt.price ?? '';
+  field('area').value = apt.area ?? '';
+  field('rooms').value = apt.rooms != null ? String(apt.rooms) : '';
   field('district').value = apt.district || 'Другое';
   field('status').value = apt.status || 'Интересно';
   field('heating').value = apt.heating ?? '';
