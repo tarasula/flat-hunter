@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мои квартиры — Flat Hunter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dashboard">
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>🏠 Мои квартиры</h1>
+        <p id="stats" class="muted"></p>
+      </div>
+      <button id="export-btn" class="btn btn-secondary" type="button">⬇ Экспорт в CSV</button>
+    </header>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="Поиск по названию и комментарию…">
+      <select id="filter-district">
+        <option value="">Все районы</option>
+      </select>
+      <label class="check"><input id="filter-pet" type="checkbox"><span>🐾 Только pet-friendly</span></label>
+      <label class="check"><input id="filter-carton" type="checkbox"><span>📄 Только с белым картоном</span></label>
+      <div class="view-toggle" role="tablist">
+        <button type="button" data-view="kanban" class="active">Канбан</button>
+        <button type="button" data-view="table">Таблица</button>
+      </div>
+    </div>
+
+    <main id="board" class="board"></main>
+
+    <div id="table-wrap" class="table-wrap" hidden>
+      <table>
+        <thead>
+          <tr>
+            <th>Заголовок</th>
+            <th>Цена</th>
+            <th>Район</th>
+            <th>Статус</th>
+            <th>Отопление</th>
+            <th title="Белый картон">📄</th>
+            <th title="Pet-friendly">🐾</th>
+            <th>Комментарий</th>
+            <th>Добавлено</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="empty" hidden>
+      <div class="empty-icon">🗂️</div>
+      <p><strong>База пока пуста</strong></p>
+      <p class="muted">Откройте объявление на HaloOglasi или CityExpert, нажмите на иконку расширения и сохраните квартиру.</p>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

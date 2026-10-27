@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Flat Hunter</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="popup">
+  <header class="popup-header">
+    <div class="brand"><span class="brand-icon">🏠</span><span>Flat Hunter</span></div>
+    <button id="open-dashboard" class="btn btn-ghost btn-sm" type="button">Открыть мою базу →</button>
+  </header>
+
+  <div id="existing-banner" class="banner" hidden>
+    Эта квартира уже в базе — сохранение обновит запись.
+  </div>
+
+  <button id="parse-btn" class="btn btn-secondary btn-block" type="button">
+    ✨ Спарсить данные с текущей страницы
+  </button>
+
+  <form id="apt-form" autocomplete="off" novalidate>
+    <label class="field">
+      <span class="field-label">Заголовок</span>
+      <input name="title" type="text" placeholder="Название или адрес">
+    </label>
+
+    <label class="field">
+      <span class="field-label">URL</span>
+      <input name="url" type="url" placeholder="https://…">
+    </label>
+
+    <div class="row">
+      <label class="field">
+        <span class="field-label">Цена, €</span>
+        <input name="price" type="number" min="0" step="10" inputmode="numeric" placeholder="650">
+      </label>
+      <label class="field">
+        <span class="field-label">Район / Папка</span>
+        <select name="district"><!-- заполняется из data.js --></select>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Статус</span>
+      <select name="status"><!-- заполняется из data.js --></select>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Тип отопления</span>
+      <select name="heating">
+        <option value="" selected>Не указано</option>
+        <!-- остальные опции — из data.js -->
+      </select>
+    </label>
+
+    <div class="checks">
+      <label class="check"><input type="checkbox" name="whiteCarton"><span>📄 Делает белый картон</span></label>
+      <label class="check"><input type="checkbox" name="petFriendly"><span>🐾 Pet-friendly</span></label>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Комментарий</span>
+      <textarea name="comment" rows="3" placeholder="Депозит, Инфостан, контакты хозяина…"></textarea>
+    </label>
+
+    <button id="save-btn" type="submit" class="btn btn-primary btn-block">Сохранить квартиру</button>
+  </form>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
