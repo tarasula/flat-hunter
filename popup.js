@@ -79,6 +79,8 @@ function populateSelects() {
   const district = field('district');
   FH.fillDistrictSelect(district);
   district.value = FH.OTHER_DISTRICT;
+  district.addEventListener('change', updateDistrictHint);
+  updateDistrictHint();
 
   const status = field('status');
   FH.STATUSES.forEach((s) => status.append(new Option(s.name, s.name)));
@@ -89,6 +91,15 @@ function populateSelects() {
 
   const heating = field('heating');
   FH.HEATING_TYPES.forEach((h) => heating.append(new Option(h.value, h.value)));
+}
+
+/** Подсказка под районом: в какой общине он находится ("община Савски венац"). */
+function updateDistrictHint() {
+  const FH = globalThis.FlatHunter;
+  const value = field('district').value;
+  const group = FH.groupOf(value);
+  document.getElementById('district-hint').textContent =
+    group && group !== value && group !== 'Пригороды' ? `община ${group}` : '';
 }
 
 // ---------- Парсинг ----------
@@ -139,6 +150,7 @@ function applyParsed({ title, price, url, district, heating, area, rooms, photo 
 
   if (district) field('district').value = district;
   else missing.push('район');
+  updateDistrictHint();
 
   // Отопление подставляем, только если пользователь его ещё не выбрал
   if (heating && !field('heating').value) field('heating').value = heating;
@@ -216,7 +228,8 @@ function readForm() {
 /** Заполняет форму данными сохранённой квартиры. */
 function fillForm(apt) {
   // Значения из старых версий, которых нет в текущих списках, не теряем
-  globalThis.FlatHunter.ensureOption(field('district'), apt.district);
+  const district = globalThis.FlatHunter.DISTRICT_RENAMES[apt.district] || apt.district;
+  globalThis.FlatHunter.ensureOption(field('district'), district);
   globalThis.FlatHunter.ensureOption(field('heating'), apt.heating);
 
   field('title').value = apt.title ?? '';
@@ -224,7 +237,8 @@ function fillForm(apt) {
   field('price').value = apt.price ?? '';
   field('area').value = apt.area ?? '';
   field('rooms').value = apt.rooms != null ? String(apt.rooms) : '';
-  field('district').value = apt.district || 'Другое';
+  field('district').value = district || 'Другое';
+  updateDistrictHint();
   field('status').value = apt.status || 'Интересно';
   field('heating').value = apt.heating ?? '';
   field('whiteCarton').checked = Boolean(apt.whiteCarton);

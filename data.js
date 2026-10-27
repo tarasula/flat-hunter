@@ -50,7 +50,7 @@
         ['Дединье', 'Dedinje'],
         ['Топчидер', 'Topčider'],
         ['Савамала', 'Savamala'],
-        ['Сайам', 'Sajam', ['beogradski sajam']],
+        ['Саям (Ярмарка)', 'Sajam', ['beogradski sajam', 'bigz']],
         ['Царева чуприя', 'Careva ćuprija'],
         ['Прокоп', 'Prokop'],
       ],
@@ -189,6 +189,9 @@
   ];
 
   const OTHER_DISTRICT = 'Другое';
+
+  /** Переименованные районы: старое значение → новое (старые записи мигрируют автоматически). */
+  const DISTRICT_RENAMES = { 'Сайам': 'Саям (Ярмарка)' };
 
   // ---------- Типы отопления ----------
 
@@ -431,6 +434,7 @@
     detectArea,
     roundRooms,
     formatRooms,
+    DISTRICT_RENAMES,
     groupOf,
     heatingShort,
     fillDistrictSelect,

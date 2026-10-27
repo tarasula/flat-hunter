@@ -38,6 +38,26 @@ async function updateBadge() {
   await chrome.action.setBadgeText({ text: activeCount ? String(activeCount) : '' });
 }
 
+// ---------- Миграция старых записей ----------
+
+/** Старые названия районов, которые были переименованы (см. DISTRICT_RENAMES в data.js). */
+const DISTRICT_RENAMES = { 'Сайам': 'Саям (Ярмарка)' };
+
+/** Переписывает в базе переименованные районы. Ничего не делает, если менять нечего. */
+async function migrateApartments() {
+  const { [STORAGE_KEY]: list } = await chrome.storage.local.get(STORAGE_KEY);
+  if (!Array.isArray(list)) return;
+  let changed = false;
+  const migrated = list.map((apt) => {
+    const renamed = DISTRICT_RENAMES[apt.district];
+    if (!renamed) return apt;
+    changed = true;
+    return { ...apt, district: renamed };
+  });
+  if (changed) await chrome.storage.local.set({ [STORAGE_KEY]: migrated });
+}
+migrateApartments().catch(() => {});
+
 // ---------- Обновление из git-папки ----------
 //
 // Никаких таймеров: расширение проверяет свои файлы на диске только тогда,
