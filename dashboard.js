@@ -406,12 +406,11 @@ function safeUrl(raw) {
   }
 }
 
-/** "105 м² · 4 комн. · 11 €/м²" — строка характеристик для карточки. */
+/** "105 м² · 4 комн." — строка характеристик для карточки. */
 function specsText(apt) {
   const parts = [];
   if (apt.area) parts.push(`${formatNumber(apt.area)} м²`);
   if (apt.rooms) parts.push(FH.formatRooms(apt.rooms));
-  if (apt.area && apt.price) parts.push(`${formatNumber(Math.round((apt.price / apt.area) * 10) / 10)} €/м²`);
   return parts.join(' · ');
 }
 
