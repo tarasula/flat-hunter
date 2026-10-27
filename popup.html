@@ -25,6 +25,12 @@
   </button>
 
   <form id="apt-form" autocomplete="off" novalidate>
+    <input type="hidden" name="photo">
+    <div id="photo-preview" class="photo-preview" hidden>
+      <img alt="Фото квартиры" referrerpolicy="no-referrer">
+      <button id="photo-remove" class="photo-remove" type="button" title="Убрать фото">✕</button>
+    </div>
+
     <label class="field">
       <span class="field-label">Заголовок</span>
       <input name="title" type="text" placeholder="Название или адрес">

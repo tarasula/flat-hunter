@@ -228,6 +228,8 @@ function createCard(apt) {
   const specs = specsText(apt);
   const specsEl = specs && el('div', { className: 'card-specs', textContent: specs });
 
+  const photo = createPhoto(apt, 'card-photo');
+  if (photo) card.append(photo);
   card.append(createTitle(apt), priceEl);
   if (specsEl) card.append(specsEl);
   card.append(tags, createFeatureIcons(apt));
@@ -250,7 +252,7 @@ function renderTable(items) {
 
   items.forEach((apt) => {
     const tr = el('tr', {},
-      el('td', {}, createTitle(apt)),
+      el('td', {}, el('div', { className: 'title-cell' }, createPhoto(apt, 'table-photo'), createTitle(apt))),
       el('td', { className: 'nowrap', textContent: apt.price ? formatPrice(apt.price) : '—' }),
       el('td', { className: 'nowrap', textContent: apt.area ? `${formatNumber(apt.area)} м²` : '—' }),
       el('td', { className: 'nowrap', textContent: apt.rooms ? FH.formatRooms(apt.rooms) : '—' }),
@@ -275,6 +277,23 @@ function createTitle(apt) {
   const href = safeUrl(apt.url);
   if (!href) return el('span', { className: 'card-title', textContent: text });
   return el('a', { className: 'card-title', href, target: '_blank', rel: 'noopener noreferrer', textContent: text });
+}
+
+/**
+ * Главное фото объявления (ссылка на сайт, сама картинка не хранится).
+ * Клик открывает объявление. Если фото удалили с сайта — блок просто исчезает.
+ */
+function createPhoto(apt, className) {
+  const src = safeUrl(apt.photo);
+  if (!src) return null;
+
+  const img = el('img', { src, alt: '', loading: 'lazy', referrerPolicy: 'no-referrer', draggable: false });
+  const href = safeUrl(apt.url);
+  const wrap = href
+    ? el('a', { className, href, target: '_blank', rel: 'noopener noreferrer', draggable: false }, img)
+    : el('div', { className }, img);
+  img.addEventListener('error', () => wrap.remove());
+  return wrap;
 }
 
 /** Иконки-чекбоксы: активная иконка — яркая, неактивная — бледная. */
@@ -340,12 +359,12 @@ function exportCsv() {
   }
 
   const headers = ['Заголовок', 'URL', 'Цена (€)', 'Площадь (м²)', 'Комнаты', 'Район', 'Статус', 'Отопление',
-    'Белый картон', 'Pet-friendly', 'Комментарий', 'Добавлено', 'Обновлено'];
+    'Белый картон', 'Pet-friendly', 'Комментарий', 'Фото', 'Добавлено', 'Обновлено'];
 
   const rows = state.apartments.map((a) => [
     a.title, a.url, a.price ?? '', a.area ?? '', a.rooms ?? '', a.district, a.status, a.heating,
     a.whiteCarton ? 'Да' : 'Нет', a.petFriendly ? 'Да' : 'Нет',
-    a.comment, formatDate(a.createdAt), formatDate(a.updatedAt),
+    a.comment, a.photo ?? '', formatDate(a.createdAt), formatDate(a.updatedAt),
   ]);
 
   const escape = (value) => {

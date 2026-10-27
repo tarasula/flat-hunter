@@ -8,7 +8,7 @@
  *
  * Перед ним инжектится data.js (справочник районов и отопления → globalThis.FlatHunter).
  * Значение последнего выражения файла (результат IIFE) возвращается в popup.
- * Формат: { title, price, url, district, heating, area: м² | null, rooms: число комнат | null }
+ * Формат: { title, price, url, district, heating, area: м² | null, rooms: число комнат | null, photo: URL главного фото }
  */
 (() => {
   const FH = globalThis.FlatHunter;
@@ -28,6 +28,9 @@
       scriptHeating: /"grejanje_s"\s*:\s*"([^"]+)"/,
       scriptArea: /"kvadratura_d"\s*:\s*"?([\d.]+)/,
       scriptRooms: /"broj_soba_s"\s*:\s*"([^"]+)"/,
+      // Список фото объявления; пути относительные — от img.halooglasi.com
+      scriptPhoto: /"ImageURLs"\s*:\s*\[\s*"([^"]+)"/,
+      photoBase: 'https://img.halooglasi.com',
     },
     {
       host: /(^|\.)cityexpert\.rs$/,
@@ -180,6 +183,50 @@
     return FH.detectRooms(title) || FH.detectRooms(pageText());
   }
 
+  /** Превращает путь в абсолютный http(s) URL или ''. */
+  function absoluteUrl(src, base = location.href) {
+    try {
+      const u = new URL(src, base);
+      return /^https?:$/.test(u.protocol) ? u.href : '';
+    } catch {
+      return '';
+    }
+  }
+
+  /** Картинка из JSON-LD (schema.org): image может быть строкой, массивом или объектом. */
+  function photoFromJsonLd() {
+    for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const data = JSON.parse(s.textContent);
+        for (const node of [].concat(data, data['@graph'] || [])) {
+          const img = [].concat(node?.image || [])[0];
+          const src = typeof img === 'string' ? img : img?.url;
+          if (src) return absoluteUrl(src);
+        }
+      } catch { /* битый JSON — пропускаем */ }
+    }
+    return '';
+  }
+
+  /** Первая крупная картинка в верхней части страницы (галерея объявления). */
+  function photoFromDom() {
+    const img = [...document.images].find((i) => i.naturalWidth >= 300 && i.naturalHeight >= 200);
+    return img ? absoluteUrl(img.currentSrc || img.src) : '';
+  }
+
+  /**
+   * Главное фото объявления: og:image (стандарт почти у всех сайтов) →
+   * список фото из данных сайта → schema.org → первая крупная картинка.
+   * Сохраняется только ссылка, не сама картинка.
+   */
+  function guessPhoto(rule) {
+    const og = metaOf('og:image', 'og:image:url', 'twitter:image');
+    if (og) return absoluteUrl(og);
+    const fromScript = scriptValue(rule.scriptPhoto);
+    if (fromScript) return absoluteUrl(fromScript, rule.photoBase || location.href);
+    return photoFromJsonLd() || photoFromDom();
+  }
+
   /** Отопление: ищем в тексте страницы ("Grejanje: CG", "Centralno grejanje", "TA peć"…). */
   function guessHeating(rule, title) {
     // Поле сайта ("grejanje_s": "Gas") надёжнее, чем текст всей страницы
@@ -221,9 +268,10 @@
       heating: FH ? guessHeating(rule, title) : '',
       area: FH ? guessArea(rule, title) : null,
       rooms: FH ? guessRooms(rule, title) : null,
+      photo: guessPhoto(rule),
     };
   } catch (err) {
     // Если что-то пошло не так — отдаём хотя бы URL, остальное пользователь введёт сам.
-    return { title: '', price: null, url: location.href, district: '', heating: '', area: null, rooms: null, error: String(err) };
+    return { title: '', price: null, url: location.href, district: '', heating: '', area: null, rooms: null, photo: '', error: String(err) };
   }
 })();

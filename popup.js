@@ -35,6 +35,7 @@ async function init() {
   parseBtn.addEventListener('click', parseCurrentPage);
   form.addEventListener('submit', saveApartment);
   form.addEventListener('input', (e) => e.target.classList.remove('needs-input'));
+  document.getElementById('photo-remove').addEventListener('click', () => setPhoto(''));
 
   [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabUrl = activeTab?.url ?? '';
@@ -117,7 +118,7 @@ async function parseCurrentPage() {
  * Переносит найденные данные в форму.
  * Не найденные поля не трогаем (остаются пустыми для ручного ввода) и подсвечиваем.
  */
-function applyParsed({ title, price, url, district, heating, area, rooms }) {
+function applyParsed({ title, price, url, district, heating, area, rooms, photo }) {
   const missing = [];
 
   if (url) field('url').value = url;
@@ -127,6 +128,8 @@ function applyParsed({ title, price, url, district, heating, area, rooms }) {
 
   if (price) field('price').value = price;
   else { markMissing('price'); missing.push('цену'); }
+
+  if (photo) setPhoto(photo);
 
   if (area) field('area').value = area;
   else { markMissing('area'); missing.push('площадь'); }
@@ -206,6 +209,7 @@ function readForm() {
     whiteCarton: field('whiteCarton').checked,
     petFriendly: field('petFriendly').checked,
     comment: field('comment').value.trim(),
+    photo: field('photo').value,
   };
 }
 
@@ -226,6 +230,21 @@ function fillForm(apt) {
   field('whiteCarton').checked = Boolean(apt.whiteCarton);
   field('petFriendly').checked = Boolean(apt.petFriendly);
   field('comment').value = apt.comment ?? '';
+  setPhoto(apt.photo || '');
+}
+
+/** Показывает превью главного фото (или прячет, если url пустой) и кладёт ссылку в форму. */
+function setPhoto(url) {
+  field('photo').value = url;
+  const preview = document.getElementById('photo-preview');
+  const img = preview.querySelector('img');
+  preview.hidden = !url;
+  if (url) {
+    img.onerror = () => { preview.hidden = true; };
+    img.src = url;
+  } else {
+    img.removeAttribute('src');
+  }
 }
 
 // ---------- Хранилище ----------
