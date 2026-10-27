@@ -19,9 +19,13 @@
       host: /(^|\.)halooglasi\.com$/,
       title: ['#plh1', '.product-details-desc h1', 'h1'],
       price: ['.offer-price-value', 'span[itemprop="price"]'],
-      location: ['.subtitle-places', '#plh2', '#plh3', '#plh4', '#plh5'],
-      // Запасной вариант: HaloOglasi хранит данные объявления в JSON внутри <script>
+      // Строка адреса основного объявления: "Beograd - Opština Savski venac - Senjak".
+      // НЕ .subtitle-places — этот класс есть и у похожих объявлений внизу страницы.
+      location: ['#plh2', '#plh3', '#plh4', '#plh5'],
+      // HaloOglasi хранит поля объявления в JSON внутри <script> — самый надёжный источник
       scriptPrice: /"cena_d"\s*:\s*"?([\d.]+)/,
+      scriptDistrict: [/"mikrolokacija_s"\s*:\s*"([^"]+)"/, /"lokacija_s"\s*:\s*"([^"]+)"/],
+      scriptHeating: /"grejanje_s"\s*:\s*"([^"]+)"/,
     },
     {
       host: /(^|\.)cityexpert\.rs$/,
@@ -95,6 +99,16 @@
     return null;
   }
 
+  /** Первое совпадение регулярки в inline-скриптах страницы (группа 1). */
+  function scriptValue(regex) {
+    if (!regex) return '';
+    for (const s of document.scripts) {
+      const m = s.textContent.match(regex);
+      if (m) return clean(m[1]);
+    }
+    return '';
+  }
+
   /** Достаёт название и цену из разметки schema.org (JSON-LD), если она есть. */
   function fromJsonLd() {
     const out = { title: '', price: null };
@@ -114,10 +128,14 @@
     return out;
   }
 
-  /** Текст всех элементов по всем селекторам (для блоков адреса). */
+  /**
+   * Текст по каждому селектору (только ПЕРВЫЙ элемент — дальше на странице
+   * обычно идут похожие объявления со своими адресами).
+   */
   const textOfAll = (selectors = []) =>
     selectors
-      .flatMap((sel) => [...document.querySelectorAll(sel)].slice(0, 5))
+      .map((sel) => document.querySelector(sel))
+      .filter(Boolean)
       .map((el) => clean(el.textContent))
       .filter(Boolean)
       .join(' , ');
@@ -127,6 +145,14 @@
    * Сама логика сопоставления — в data.js (FlatHunter.detectDistrict).
    */
   function guessDistrict(rule, title) {
+    // 1) Поля сайта из JSON (HaloOglasi: mikrolokacija_s, lokacija_s)
+    const scriptText = (rule.scriptDistrict || []).map(scriptValue).filter(Boolean).join(' , ');
+    if (scriptText) {
+      const fromScript = FH.detectDistrict([scriptText, title]);
+      if (fromScript) return fromScript;
+    }
+
+    // 2) Блок адреса → заголовок → описание
     const locationText = textOfAll([
       ...(rule.location || []),
       '[itemprop="address"]',
@@ -136,7 +162,13 @@
   }
 
   /** Отопление: ищем в тексте страницы ("Grejanje: CG", "Centralno grejanje", "TA peć"…). */
-  function guessHeating(title) {
+  function guessHeating(rule, title) {
+    // Поле сайта ("grejanje_s": "Gas") надёжнее, чем текст всей страницы
+    const fromScript = scriptValue(rule.scriptHeating);
+    if (fromScript) {
+      const type = FH.detectHeating(`grejanje ${fromScript}`);
+      if (type) return type;
+    }
     return FH.detectHeating(`${title} ${document.body?.innerText?.slice(0, 30000) || ''}`);
   }
 
@@ -167,7 +199,7 @@
       price: price || null,
       url: location.href,
       district: FH ? guessDistrict(rule, title) : '',
-      heating: FH ? guessHeating(title) : '',
+      heating: FH ? guessHeating(rule, title) : '',
     };
   } catch (err) {
     // Если что-то пошло не так — отдаём хотя бы URL, остальное пользователь введёт сам.
